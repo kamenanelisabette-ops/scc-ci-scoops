@@ -160,3 +160,57 @@ bindForms=function(){
 
 const _renderV3=render;
 render=function(){if(!pageAllowed(page))page='dashboard';_renderV3()};
+
+/* ===== V3.2 — création sécurisée des comptes utilisateurs ===== */
+personnel=function(){
+  const rows=(C.profiles||[]).map(x=>`<tr><td>${esc(x.nom_complet||'')}</td><td>${esc(x.telephone||'')}</td><td><span class="pill">${esc(x.role)}</span></td><td>${x.actif?'<span class="status-ok">Actif</span>':'<span class="status-bad">Inactif</span>'}</td></tr>`).join('');
+  const roleOptions=[
+    ['direction','Direction'],['secretariat','Secrétariat'],['caisse','Caisse'],['comptabilite','Comptabilité'],['commis','Commis'],['stock_transport','Stock & transport'],['admin','Administrateur']
+  ].map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  const form=profile?.role==='admin'?panel('Créer un compte utilisateur',`<form id="fUtilisateur" class="form-grid">
+    <label class="span2">Nom complet<input name="nom_complet" autocomplete="name" required placeholder="Nom et prénoms"></label>
+    <label>Email<input name="email" type="email" autocomplete="off" required placeholder="utilisateur@cooperative.ci"></label>
+    <label>Téléphone<input name="telephone" autocomplete="tel" placeholder="07 00 00 00 00"></label>
+    <label>Rôle<select name="role" required>${roleOptions}</select></label>
+    <label>Mot de passe provisoire<input name="password" type="password" minlength="8" autocomplete="new-password" required placeholder="8 caractères minimum"></label>
+    <div class="span2 section-note">Le compte est créé dans Supabase Auth et le profil métier est ajouté automatiquement. Cette action est réservée à l’administrateur.</div>
+    <button class="btn primary wide span2" type="submit">Créer le compte utilisateur</button>
+  </form>`):panel('Gestion des comptes',`<div class="section-note">Seul un administrateur peut créer des comptes utilisateurs.</div>`);
+  return roleInfo()+banner()+`<div class="grid two">${panel('Utilisateurs & rôles',table(['Nom','Téléphone','Rôle','Statut'],rows))}${form}</div>`;
+};
+
+async function createUserFromAdmin(fd){
+  if(profile?.role!=='admin'){toast('Action réservée à l’administrateur');return false}
+  const payload={
+    nom_complet:String(fd.get('nom_complet')||'').trim(),
+    email:String(fd.get('email')||'').trim().toLowerCase(),
+    telephone:String(fd.get('telephone')||'').trim(),
+    role:String(fd.get('role')||''),
+    password:String(fd.get('password')||'')
+  };
+  if(payload.password.length<8){toast('Mot de passe : 8 caractères minimum');return false}
+  const btn=document.querySelector('#fUtilisateur button[type="submit"]');
+  const old=btn?.textContent;
+  if(btn){btn.disabled=true;btn.textContent='Création du compte...'}
+  try{
+    const {data,error}=await sb.functions.invoke('create-user',{body:payload});
+    if(error)throw error;
+    if(!data?.ok)throw new Error(data?.error||'Création impossible');
+    toast('Compte utilisateur créé avec succès');
+    await load();
+    render();
+    return true;
+  }catch(err){
+    const msg=err?.context?.body?.error||err?.message||'Création impossible';
+    toast('Erreur : '+msg);
+    return false;
+  }finally{
+    if(btn && document.body.contains(btn)){btn.disabled=false;btn.textContent=old||'Créer le compte utilisateur'}
+  }
+}
+
+const _bindFormsV32=bindForms;
+bindForms=function(){
+  _bindFormsV32();
+  bind('fUtilisateur',createUserFromAdmin);
+};
