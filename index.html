@@ -1,5 +1,61 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SCC-CI-SCOOPS • Gestion coopérative</title><link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="stylesheet" href="styles.css"></head><body>
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#123b2a">
+<title>SCC-CI-SCOOPS • ERP Coopérative</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
 <div id="toast"></div>
-<section id="loginView" class="login-shell"><div class="login-card"><div class="brand-mark">SCC</div><h1>SCC-CI-SCOOPS</h1><p>Plateforme de gestion intégrée de la coopérative</p><form id="loginForm"><label>Email<input id="loginEmail" type="email" required autocomplete="username"></label><label>Mot de passe<input id="loginPassword" type="password" required autocomplete="current-password"></label><button class="btn primary wide">Se connecter</button><div id="loginStatus" class="muted"></div></form></div></section>
-<section id="appView" class="app hidden"><aside id="sidebar" class="sidebar"><div class="brand"><div class="logo">SCC</div><div><strong>SCC-CI-SCOOPS</strong><span>Gestion coopérative</span></div></div><nav id="nav"></nav><div class="side-foot"><button id="logoutBtn" class="btn ghost wide">Déconnexion</button></div></aside><main class="main"><header class="topbar"><div class="top-left"><button id="menuBtn" class="icon-btn">☰</button><div><h2 id="pageTitle">Tableau de bord</h2><div id="pageSubtitle" class="muted"></div></div></div><div class="top-actions"><select id="activitySelect"></select><select id="yearSelect"></select><span id="syncBadge" class="badge warn">● Synchronisation</span><div class="userbox"><strong id="userName"></strong><span id="roleLabel"></span></div></div></header><div class="contextbar"><span id="todayLabel"></span><button id="refreshBtn" class="btn secondary">Actualiser</button></div><section id="content" class="content"></section></main></section>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js"></script></body></html>
+<section id="loginView" class="login-shell">
+  <div class="login-wrap">
+    <div class="login-hero">
+      <div class="hero-kicker">SYSTÈME INTÉGRÉ DE GESTION COOPÉRATIVE</div>
+      <h1>Pilotez toute la coopérative depuis un seul outil.</h1>
+      <p>Collecte, caisse, stock, transport, ventes, comptabilité, membres, contrôle et rapports — avec traçabilité complète.</p>
+      <div class="hero-points">
+        <span>✓ Multi-activités</span><span>✓ Multi-années</span><span>✓ Gestion par rôles</span><span>✓ Audit & traçabilité</span>
+      </div>
+    </div>
+    <div class="login-card">
+      <div class="brand-mark">SCC</div>
+      <div class="login-title"><div class="eyebrow">Accès sécurisé</div><h2>SCC-CI-SCOOPS</h2><p>ERP de gestion coopérative</p></div>
+      <form id="loginForm">
+        <label>Adresse email<input id="loginEmail" type="email" required autocomplete="username" placeholder="nom@cooperative.ci"></label>
+        <label>Mot de passe<input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••"></label>
+        <button class="btn primary wide">Se connecter</button>
+        <div id="loginStatus" class="muted"></div>
+      </form>
+      <div class="login-foot">Accès réservé aux utilisateurs autorisés de SCC-CI-SCOOPS.</div>
+    </div>
+  </div>
+</section>
+<section id="appView" class="app hidden">
+  <aside id="sidebar" class="sidebar">
+    <div class="brand"><div class="logo">SCC</div><div><strong>SCC-CI-SCOOPS</strong><span>ERP Coopérative</span></div></div>
+    <div class="side-context"><span class="side-dot"></span><div><strong id="sideActivity">Toutes activités</strong><span id="sideYear">Toutes années</span></div></div>
+    <nav id="nav"></nav>
+    <div class="side-foot"><button id="logoutBtn" class="btn ghost wide">Se déconnecter</button><small>Version 4.0 ERP PRO</small></div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="top-left"><button id="menuBtn" class="icon-btn">☰</button><div><div class="eyebrow" id="sectionLabel">Pilotage</div><h2 id="pageTitle">Tableau de bord</h2><div id="pageSubtitle" class="muted"></div></div></div>
+      <div class="top-actions">
+        <div class="searchbox"><span>⌕</span><input id="globalSearch" placeholder="Rechercher planteur, reçu, voyage…"></div>
+        <select id="activitySelect"></select><select id="yearSelect"></select>
+        <span id="syncBadge" class="badge warn">● Synchronisation</span>
+        <button id="notifBtn" class="icon-btn desktop-icon" title="Alertes">!</button>
+        <div class="userbox"><div class="avatar" id="userAvatar">U</div><div><strong id="userName"></strong><span id="roleLabel"></span></div></div>
+      </div>
+    </header>
+    <div class="contextbar"><div><span id="todayLabel"></span><span class="context-sep">•</span><span id="contextHint">Données opérationnelles synchronisées</span></div><div class="context-actions"><button id="quickBtn" class="btn primary soft">+ Action rapide</button><button id="refreshBtn" class="btn secondary">↻ Actualiser</button></div></div>
+    <section id="content" class="content"></section>
+  </main>
+</section>
+<div id="commandPalette" class="modal-backdrop hidden"><div class="modal-card command-card"><div class="modal-head"><div><div class="eyebrow">Action rapide</div><h3>Que voulez-vous faire ?</h3></div><button class="modal-close" data-close-modal>×</button></div><div id="quickActions" class="quick-actions"></div></div></div>
+<div id="searchModal" class="modal-backdrop hidden"><div class="modal-card search-modal"><div class="modal-head"><div><div class="eyebrow">Recherche globale</div><h3 id="searchTitle">Résultats</h3></div><button class="modal-close" data-close-modal>×</button></div><div id="searchResults"></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="app.js"></script>
+</body></html>

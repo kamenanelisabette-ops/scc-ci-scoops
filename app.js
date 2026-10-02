@@ -214,3 +214,227 @@ bindForms=function(){
   _bindFormsV32();
   bind('fUtilisateur',createUserFromAdmin);
 };
+
+/* ===== V4 ERP PRO — pilotage exécutif, recherche globale, actions rapides et administration avancée ===== */
+const V4_NAV_ICONS={dashboard:'⌂',alertes:'!',planteurs:'P',commis:'C',localites:'L',collectes:'⚖',lots:'◫',stock:'S',caisse:'$',banques:'B',echeances:'E',transport:'T',flotte:'F',usines:'U',ventes:'V',depenses:'D',compta:'C',clotures:'↺',membres:'M',gouvernance:'G',personnel:'R',documents:'J',rapports:'▤',audit:'A',parametres:'⚙'};
+const V4_SECTION={dashboard:'Pilotage',alertes:'Pilotage',planteurs:'Production',commis:'Production',localites:'Production',collectes:'Production',lots:'Production',stock:'Production',caisse:'Trésorerie',banques:'Trésorerie',echeances:'Trésorerie',transport:'Logistique',flotte:'Logistique',usines:'Logistique',ventes:'Commercial',depenses:'Commercial',compta:'Comptabilité',clotures:'Comptabilité',membres:'Coopérative',gouvernance:'Coopérative',personnel:'Administration',documents:'Conformité',rapports:'Contrôle',audit:'Contrôle',parametres:'Administration'};
+const roleDisplay=r=>({admin:'Administrateur',direction:'Direction',secretariat:'Secrétariat',caisse:'Caisse',comptabilite:'Comptabilité',commis:'Commis',stock_transport:'Stock & transport'})[r]||r||'Utilisateur';
+const num=n=>new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(Number(n||0));
+const pct=n=>`${new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1}).format(Number(n||0))}%`;
+const safeDate=d=>d?new Date(d).toLocaleDateString('fr-FR'):'—';
+const statusPill=(text,type='')=>`<span class="pill ${type}">${esc(text)}</span>`;
+
+nav=function(){
+  $('#nav').innerHTML=menus.map(([s,it])=>{
+    const allowed=it.filter(([k])=>pageAllowed(k));
+    if(!allowed.length)return '';
+    return `<div class="nav-section">${s}</div>${allowed.map(([k,v])=>`<button class="nav-btn ${page===k?'active':''}" data-page="${k}" data-icon="${V4_NAV_ICONS[k]||'•'}">${v}</button>`).join('')}`;
+  }).join('');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.onclick=()=>{page=b.dataset.page;render();$('#sidebar').classList.remove('open')});
+};
+
+function executiveHeader(){
+  const scope=activity==='ALL'?'Vue consolidée des trois activités':activityName();
+  const period=year==='ALL'?'Toutes périodes':yearName();
+  return `<div class="executive-head"><div><div class="eyebrow">Centre de pilotage</div><h1>Situation de la coopérative</h1><p>${esc(scope)} • ${esc(period)} • indicateurs calculés depuis la base opérationnelle</p></div><div class="period-chip"><span>${esc(activityName())}</span><span>${esc(yearName())}</span></div></div>`;
+}
+
+function dashboard(){
+  const col=filt('collectes',C.collectes),ven=filt('ventes_usine',C.ventes_usine),dep=filt('depenses',C.depenses),ms=filt('mouvements_stock',C.mouvements_stock),pay=filt('paiements_planteurs',C.paiements_planteurs),voy=filt('voyages',C.voyages),ech=filt('echeances',C.echeances),mov=filt('mouvements_caisse',C.mouvements_caisse);
+  const poids=col.reduce((s,x)=>s+Number(x.poids_net_kg||0),0),achat=col.reduce((s,x)=>s+Number(x.net_a_payer||0),0),ca=ven.reduce((s,x)=>s+Number(x.chiffre_affaires||0),0),charges=dep.reduce((s,x)=>s+Number(x.montant||0),0),paid=pay.reduce((s,x)=>s+Number(x.montant||0),0);
+  const stock=ms.reduce((s,x)=>s+(String(x.type_mouvement||'').toLowerCase()==='sortie'?-1:1)*Number(x.poids_kg||0),0);
+  const caisseEntrees=mov.filter(x=>x.sens==='entree').reduce((s,x)=>s+Number(x.montant||0),0),caisseSorties=mov.filter(x=>x.sens==='sortie').reduce((s,x)=>s+Number(x.montant||0),0);
+  const restePlanteurs=Math.max(0,achat-paid),resultat=ca-achat-charges;
+  const unpaid=col.filter(x=>x.statut_paiement!=='paye').length;
+  const ventesNonPayees=ven.filter(x=>!['paye','payé','regle','réglé'].includes(String(x.statut_reglement||'').toLowerCase())).length;
+  const voyagesActifs=voy.filter(x=>!['termine','terminé','livre','livré','clos'].includes(String(x.statut||'').toLowerCase())).length;
+  const alerts=(C.alertes||[]).filter(x=>!x.resolu), incidents=(C.incidents||[]).filter(x=>!['resolu','résolu','clos'].includes(String(x.statut||'').toLowerCase()));
+  const exp=ech.filter(x=>x.date_echeance && new Date(x.date_echeance)<new Date() && !['paye','payé','regle','réglé','clos'].includes(String(x.statut||'').toLowerCase())).length;
+  const resultClass=resultat>=0?'positive':'negative';
+  const workflow=`<div class="workflow">
+    <div class="workflow-step ok"><b>1. Collecte</b><strong>${num(col.length)}</strong><span>${kg(poids)} enregistrés</span></div>
+    <div class="workflow-step ${unpaid?'warn':'ok'}"><b>2. Paiement</b><strong>${num(unpaid)}</strong><span>collectes à payer</span></div>
+    <div class="workflow-step info"><b>3. Stock</b><strong>${num(stock)}</strong><span>kg théoriques disponibles</span></div>
+    <div class="workflow-step ${voyagesActifs?'warn':'ok'}"><b>4. Transport</b><strong>${num(voyagesActifs)}</strong><span>voyages non clôturés</span></div>
+    <div class="workflow-step info"><b>5. Ventes</b><strong>${num(ven.length)}</strong><span>${money(ca)} facturés</span></div>
+    <div class="workflow-step ${ventesNonPayees?'warn':'ok'}"><b>6. Encaissement</b><strong>${num(ventesNonPayees)}</strong><span>ventes non réglées</span></div>
+  </div>`;
+  const byActivity=A.map(a=>{
+    const cc=col.filter(x=>x.activite_id===a.id),vv=ven.filter(x=>x.activite_id===a.id),dd=dep.filter(x=>x.activite_id===a.id);const kgA=cc.reduce((s,x)=>s+Number(x.poids_net_kg||0),0),caA=vv.reduce((s,x)=>s+Number(x.chiffre_affaires||0),0),dA=dd.reduce((s,x)=>s+Number(x.montant||0),0);
+    return `<div class="activity-card"><h4>${esc(a.nom)}</h4><div class="big">${kg(kgA)}</div><div class="mini"><span>CA ${money(caA)}</span><span>Dép. ${money(dA)}</span></div></div>`;
+  }).join('')||'<div class="empty-state"><strong>Aucune activité</strong>Configurez les activités dans les paramètres.</div>';
+  const commisRank=(C.commis||[]).map(c=>{const list=col.filter(x=>x.commis_id===c.id),w=list.reduce((s,x)=>s+Number(x.poids_net_kg||0),0);return {name:`${c.nom||''} ${c.prenoms||''}`.trim(),w,count:list.length}}).sort((a,b)=>b.w-a.w).slice(0,5);const maxW=Math.max(1,...commisRank.map(x=>x.w));
+  const rank=commisRank.map((x,i)=>`<div class="rank-row"><span>${i+1}. ${esc(x.name||'Commis')}</span><div class="progress"><i style="width:${Math.min(100,(x.w/maxW)*100)}%"></i></div><strong>${kg(x.w)}</strong></div>`).join('')||'<div class="empty-state"><strong>Aucune performance disponible</strong>Les résultats apparaîtront après les premières collectes.</div>';
+  const risks=[
+    ['Paiements planteurs en attente',unpaid,unpaid?'red':'green'],
+    ['Échéances dépassées',exp,exp?'red':'green'],
+    ['Alertes non résolues',alerts.length,alerts.length?'red':'green'],
+    ['Incidents ouverts',incidents.length,incidents.length?'red':'green'],
+    ['Ventes non réglées',ventesNonPayees,ventesNonPayees?'red':'green']
+  ].map(([l,v,c])=>`<div class="metric"><span>${l}</span>${statusPill(String(v),c)}</div>`).join('');
+  const recent=col.slice().sort((a,b)=>new Date(b.date_collecte)-new Date(a.date_collecte)).slice(0,6).map(x=>`<tr><td>${esc(x.numero_recu)}</td><td>${safeDate(x.date_collecte)}</td><td>${esc((C.planteurs.find(p=>p.id===x.planteur_id)?.nom)||'—')}</td><td>${kg(x.poids_net_kg)}</td><td>${money(x.net_a_payer)}</td><td>${x.statut_paiement==='paye'?statusPill('Payé','green'):statusPill('À payer','red')}</td></tr>`).join('');
+  return roleInfo()+executiveHeader()+`<div class="grid kpis">
+    <div class="kpi positive"><div class="label">Production collectée</div><div class="value">${kg(poids)}</div><div class="sub">${num(col.length)} opérations de collecte</div></div>
+    <div class="kpi info"><div class="label">Chiffre d’affaires</div><div class="value">${money(ca)}</div><div class="sub">${num(ven.length)} ventes enregistrées</div></div>
+    <div class="kpi warning"><div class="label">Engagement planteurs</div><div class="value">${money(restePlanteurs)}</div><div class="sub">reste estimé à payer</div></div>
+    <div class="kpi ${resultClass}"><div class="label">Résultat opérationnel</div><div class="value">${money(resultat)}</div><div class="sub">CA - achats - dépenses</div></div>
+  </div>
+  <div class="panel" style="margin-bottom:14px"><div class="panel-head"><h3>Circuit opérationnel</h3><span class="pill blue">Vue temps réel</span></div><div class="panel-body">${workflow}</div></div>
+  <div class="grid three" style="margin-bottom:14px">${byActivity}</div>
+  <div class="grid two" style="margin-bottom:14px">
+    ${panel('Trésorerie & engagements',`<div class="metric"><span>Achats planteurs</span><strong>${money(achat)}</strong></div><div class="metric"><span>Paiements planteurs</span><strong>${money(paid)}</strong></div><div class="metric"><span>Solde caisse théorique</span><strong>${money(caisseEntrees-caisseSorties)}</strong></div><div class="metric"><span>Dépenses opérationnelles</span><strong>${money(charges)}</strong></div>`)}
+    ${panel('Points de contrôle',risks)}
+  </div>
+  <div class="grid two">
+    ${panel('Performance des commis',rank)}
+    ${panel('Dernières collectes',table(['Reçu','Date','Planteur','Poids','Net','Statut'],recent),`<button class="btn secondary sm" onclick="page='collectes';render()">Voir tout</button>`)}
+  </div>`;
+}
+
+alertes=function(){
+  const a=(C.alertes||[]).slice().sort((x,y)=>Number(x.resolu)-Number(y.resolu)||new Date(y.created_at)-new Date(x.created_at));
+  const i=(C.incidents||[]).slice().sort((x,y)=>new Date(y.created_at)-new Date(x.created_at));
+  const open=a.filter(x=>!x.resolu).length, high=a.filter(x=>!x.resolu&&['critique','critical','élevé','eleve','urgent'].includes(String(x.niveau||'').toLowerCase())).length, inc=i.filter(x=>!['resolu','résolu','clos'].includes(String(x.statut||'').toLowerCase())).length;
+  const ar=a.map(x=>`<tr><td>${statusPill(x.niveau||'info',x.resolu?'green':'red')}</td><td>${esc(x.type_alerte)}</td><td>${esc(x.titre)}</td><td>${esc(x.message)}</td><td>${x.resolu?statusPill('Résolu','green'):statusPill('Ouvert','red')}</td></tr>`).join('');
+  const ir=i.map(x=>`<tr><td>${statusPill(x.gravite||'—',String(x.statut||'').toLowerCase().includes('resol')?'green':'red')}</td><td>${esc(x.type_incident)}</td><td>${esc(x.module||'—')}</td><td>${esc(x.description)}</td><td>${esc(x.statut)}</td></tr>`).join('');
+  return banner()+`<div class="grid kpis">${kpi('Alertes ouvertes',open,'à traiter')}${kpi('Alertes critiques',high,'priorité élevée')}${kpi('Incidents ouverts',inc,'suivi opérationnel')}${kpi('Contrôles totaux',a.length+i.length,'historique')}</div><div class="grid two">${panel('Centre d’alertes',table(['Niveau','Type','Titre','Message','Statut'],ar))}${panel('Registre des incidents',table(['Gravité','Type','Module','Description','Statut'],ir))}</div>`;
+};
+
+rapports=function(){
+  const col=filt('collectes',C.collectes),ven=filt('ventes_usine',C.ventes_usine),dep=filt('depenses',C.depenses),pay=filt('paiements_planteurs',C.paiements_planteurs),voy=filt('voyages',C.voyages);
+  const rows=A.map(a=>{const cc=col.filter(x=>x.activite_id===a.id),vv=ven.filter(x=>x.activite_id===a.id),dd=dep.filter(x=>x.activite_id===a.id),pp=pay.filter(x=>x.activite_id===a.id);const poids=cc.reduce((s,x)=>s+Number(x.poids_net_kg||0),0),ca=vv.reduce((s,x)=>s+Number(x.chiffre_affaires||0),0),ach=cc.reduce((s,x)=>s+Number(x.net_a_payer||0),0),charges=dd.reduce((s,x)=>s+Number(x.montant||0),0),paid=pp.reduce((s,x)=>s+Number(x.montant||0),0);return `<tr><td><strong>${esc(a.nom)}</strong></td><td>${kg(poids)}</td><td>${money(ach)}</td><td>${money(paid)}</td><td>${money(ca)}</td><td>${money(charges)}</td><td>${money(ca-ach-charges)}</td></tr>`}).join('');
+  const totalWeight=col.reduce((s,x)=>s+Number(x.poids_net_kg||0),0),totalCA=ven.reduce((s,x)=>s+Number(x.chiffre_affaires||0),0),totalDep=dep.reduce((s,x)=>s+Number(x.montant||0),0);
+  return executiveHeader()+`<div class="grid kpis">${kpi('Volume collecté',kg(totalWeight),'production')}${kpi('Chiffre d’affaires',money(totalCA),'commercial')}${kpi('Dépenses',money(totalDep),'charges')}${kpi('Voyages',String(voy.length),'logistique')}</div>${panel('Compte-rendu consolidé par activité',table(['Activité','Collecté','Achats','Payé planteurs','CA','Dépenses','Marge op.'],rows),`<button class="btn primary sm" onclick="window.print()">Imprimer / PDF</button>`)}<div class="grid three" style="margin-top:14px"><div class="quick"><strong>Rapport production</strong><span class="muted">Collectes, planteurs, commis, localités et tarifs.</span><button class="btn secondary sm" onclick="page='collectes';render()">Consulter</button></div><div class="quick"><strong>Rapport trésorerie</strong><span class="muted">Caisse, paiements, banque, échéances et dépenses.</span><button class="btn secondary sm" onclick="page='caisse';render()">Consulter</button></div><div class="quick"><strong>Rapport logistique</strong><span class="muted">Stock, voyages, écarts et flotte.</span><button class="btn secondary sm" onclick="page='transport';render()">Consulter</button></div></div>`;
+};
+
+function roleSelectHtml(value,id){const opts=[['admin','Administrateur'],['direction','Direction'],['secretariat','Secrétariat'],['caisse','Caisse'],['comptabilite','Comptabilité'],['commis','Commis'],['stock_transport','Stock & transport']];return `<select class="role-select" data-role-user="${id}">${opts.map(([v,l])=>`<option value="${v}" ${value===v?'selected':''}>${l}</option>`).join('')}</select>`}
+
+personnel=function(){
+  const users=C.profiles||[];const active=users.filter(x=>x.actif).length,admins=users.filter(x=>x.role==='admin'&&x.actif).length;
+  const rows=users.map(x=>`<tr><td><strong>${esc(x.nom_complet||'Utilisateur')}</strong><div class="muted">${esc(x.telephone||'Sans téléphone')}</div></td><td>${profile?.role==='admin'?roleSelectHtml(x.role,x.id):statusPill(roleDisplay(x.role),'blue')}</td><td>${x.actif?statusPill('Actif','green'):statusPill('Désactivé','red')}</td><td>${safeDate(x.created_at)}</td><td>${profile?.role==='admin'?`<div class="row-actions"><button class="btn secondary sm" data-user-active="${x.id}" data-next="${x.actif?'0':'1'}">${x.actif?'Désactiver':'Activer'}</button><button class="btn secondary sm" data-user-password="${x.id}">Mot de passe</button></div>`:'—'}</td></tr>`).join('');
+  const roleOptions=[['direction','Direction'],['secretariat','Secrétariat'],['caisse','Caisse'],['comptabilite','Comptabilité'],['commis','Commis'],['stock_transport','Stock & transport'],['admin','Administrateur']].map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  const create=profile?.role==='admin'?panel('Créer un utilisateur',`<form id="fUtilisateur" class="form-grid"><label class="span2">Nom complet<input name="nom_complet" required placeholder="Nom et prénoms"></label><label>Email<input name="email" type="email" required placeholder="utilisateur@cooperative.ci"></label><label>Téléphone<input name="telephone" placeholder="07 00 00 00 00"></label><label>Rôle<select name="role" required>${roleOptions}</select></label><label>Mot de passe provisoire<input name="password" type="password" minlength="8" required placeholder="8 caractères minimum"></label><div class="span2 section-note">Le compte est créé dans Auth et lié automatiquement à son rôle métier. L’administrateur peut ensuite modifier le rôle, désactiver le compte ou définir un nouveau mot de passe.</div><button class="btn primary wide span2">Créer le compte</button></form>`):panel('Administration des comptes',`<div class="section-note">La gestion des comptes est réservée à l’administrateur.</div>`);
+  return banner()+`<div class="grid kpis">${kpi('Utilisateurs',users.length,'comptes enregistrés')}${kpi('Comptes actifs',active,'autorisés à travailler')}${kpi('Administrateurs',admins,'accès total')}${kpi('Rôles métier',7,'profils disponibles')}</div><div class="grid two">${panel('Utilisateurs & droits',table(['Utilisateur','Rôle','Statut','Créé le','Actions'],rows))}${create}</div>`;
+};
+
+async function manageUser(payload){
+  if(profile?.role!=='admin'){toast('Action réservée à l’administrateur');return false}
+  try{const {data,error}=await sb.functions.invoke('manage-user',{body:payload});if(error)throw error;if(!data?.ok)throw new Error(data?.error||'Action impossible');toast('Utilisateur mis à jour');await load();render();return true}catch(err){toast('Erreur : '+(err?.message||'Action impossible'));return false}
+}
+
+function bindV4UserAdmin(){
+  document.querySelectorAll('[data-role-user]').forEach(el=>el.onchange=async()=>{await manageUser({action:'change_role',user_id:el.dataset.roleUser,role:el.value})});
+  document.querySelectorAll('[data-user-active]').forEach(btn=>btn.onclick=async()=>{const activate=btn.dataset.next==='1';if(!confirm(`${activate?'Activer':'Désactiver'} cet utilisateur ?`))return;await manageUser({action:'set_active',user_id:btn.dataset.userActive,actif:activate})});
+  document.querySelectorAll('[data-user-password]').forEach(btn=>btn.onclick=async()=>{const p=prompt('Nouveau mot de passe (8 caractères minimum)');if(!p)return;if(p.length<8){toast('8 caractères minimum');return}await manageUser({action:'reset_password',user_id:btn.dataset.userPassword,password:p})});
+}
+
+function openQuickActions(){
+  const items=[
+    ['collectes','Nouvelle collecte','Pesée et reçu planteur'],['caisse','Paiement / caisse','Encaissement ou décaissement'],['stock','Mouvement de stock','Entrée ou sortie matière'],['transport','Nouveau voyage','Préparer un transport usine'],['ventes','Nouvelle vente','Facturation à une usine'],['depenses','Nouvelle dépense','Enregistrer une charge'],['planteurs','Nouveau planteur','Créer un producteur'],['rapports','Voir les rapports','Pilotage et impression']
+  ].filter(([p])=>pageAllowed(p));
+  $('#quickActions').innerHTML=items.map(([p,t,s])=>`<button class="quick-action" data-quick-page="${p}"><strong>${t}</strong><span>${s}</span></button>`).join('');
+  $('#commandPalette').classList.remove('hidden');document.querySelectorAll('[data-quick-page]').forEach(b=>b.onclick=()=>{page=b.dataset.quickPage;$('#commandPalette').classList.add('hidden');render()});
+}
+function closeModals(){document.querySelectorAll('.modal-backdrop').forEach(x=>x.classList.add('hidden'))}
+function globalSearch(qry){
+  const qv=String(qry||'').trim().toLowerCase();if(qv.length<2)return;
+  const results=[];const add=(page,title,sub)=>{if(results.length<40)results.push({page,title,sub})};
+  (C.planteurs||[]).forEach(x=>{const s=`${x.code_planteur} ${x.nom} ${x.prenoms||''} ${x.telephone||''}`.toLowerCase();if(s.includes(qv))add('planteurs',`${x.code_planteur} • ${x.nom} ${x.prenoms||''}`,`Planteur • ${x.telephone||'sans téléphone'}`)});
+  (C.collectes||[]).forEach(x=>{const p=C.planteurs.find(y=>y.id===x.planteur_id);const s=`${x.numero_recu} ${p?.nom||''} ${x.numero_lot||''}`.toLowerCase();if(s.includes(qv))add('collectes',`${x.numero_recu} • ${p?.nom||'Collecte'}`,`${kg(x.poids_net_kg)} • ${money(x.net_a_payer)}`)});
+  (C.voyages||[]).forEach(x=>{const s=`${x.numero_voyage} ${x.chauffeur_nom||''} ${x.destination||''}`.toLowerCase();if(s.includes(qv))add('transport',`${x.numero_voyage} • ${x.destination||'Voyage'}`,`${x.statut||'—'} • ${x.chauffeur_nom||'chauffeur non renseigné'}`)});
+  (C.ventes_usine||[]).forEach(x=>{const u=C.usines.find(y=>y.id===x.usine_id);const s=`${x.numero_vente} ${u?.nom||''} ${x.numero_facture||''}`.toLowerCase();if(s.includes(qv))add('ventes',`${x.numero_vente} • ${u?.nom||'Vente'}`,`${money(x.chiffre_affaires)} • ${x.statut_reglement||'—'}`)});
+  (C.membres_cooperative||[]).forEach(x=>{const s=`${x.code_membre} ${x.nom} ${x.prenoms||''} ${x.telephone||''}`.toLowerCase();if(s.includes(qv))add('membres',`${x.code_membre} • ${x.nom} ${x.prenoms||''}`,`Membre • ${x.telephone||'sans téléphone'}`)});
+  $('#searchTitle').textContent=`Résultats pour « ${qry} »`;
+  $('#searchResults').innerHTML=results.length?results.map(r=>`<div class="search-result" data-search-page="${r.page}"><b>${esc(r.title)}</b><span>${esc(r.sub)}</span></div>`).join(''):`<div class="empty-state"><strong>Aucun résultat</strong>Essayez avec un nom, un numéro de reçu, un voyage ou une vente.</div>`;
+  $('#searchModal').classList.remove('hidden');document.querySelectorAll('[data-search-page]').forEach(el=>el.onclick=()=>{page=el.dataset.searchPage;closeModals();render()});
+}
+
+const _bindFormsV4Base=bindForms;
+bindForms=function(){_bindFormsV4Base();bindV4UserAdmin()};
+
+const _renderV4Base=render;
+render=function(){
+  if(!pageAllowed(page))page='dashboard';
+  _renderV4Base();
+  const s=$('#sectionLabel');if(s)s.textContent=V4_SECTION[page]||'SCC-CI-SCOOPS';
+  const sa=$('#sideActivity');if(sa)sa.textContent=activityName();const sy=$('#sideYear');if(sy)sy.textContent=yearName();
+  const h=$('#contextHint');if(h)h.textContent=page==='dashboard'?'Vue consolidée et indicateurs de contrôle':'Module opérationnel • '+(labels[page]||page);
+  const av=$('#userAvatar');if(av)av.textContent=(profile?.nom_complet||'U').trim().charAt(0).toUpperCase();
+  const rl=$('#roleLabel');if(rl)rl.textContent=roleDisplay(profile?.role);
+};
+
+setTimeout(()=>{
+  const qb=$('#quickBtn');if(qb)qb.onclick=openQuickActions;
+  document.querySelectorAll('[data-close-modal]').forEach(b=>b.onclick=closeModals);
+  document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModals()}));
+  const gs=$('#globalSearch');if(gs){gs.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();globalSearch(gs.value)}})}
+  const nb=$('#notifBtn');if(nb)nb.onclick=()=>{page='alertes';render()};
+  document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();gs?.focus()}if(e.key==='Escape')closeModals()});
+},0);
+
+/* ===== V4.1 — profondeur métier ===== */
+const _loadV41=load;
+load=async function(){await _loadV41();C.lot_collectes=await q('lot_collectes')};
+
+commis=function(){
+  const cols=filt('collectes',C.collectes),objs=filt('commis_objectifs',C.commis_objectifs||[]);
+  const rows=filt('commis',C.commis).map(x=>{const cs=cols.filter(c=>c.commis_id===x.id),w=cs.reduce((s,c)=>s+Number(c.poids_net_kg||0),0),o=objs.filter(o=>o.commis_id===x.id).sort((a,b)=>new Date(b.periode_fin)-new Date(a.periode_fin))[0],target=Number(o?.objectif_kg||0),rate=target?Math.min(999,(w/target)*100):0;return `<tr><td>${esc(x.code_commis)}</td><td><strong>${esc((x.nom||'')+' '+(x.prenoms||''))}</strong><div class="muted">${esc(x.telephone||'')}</div></td><td>${esc(x.zone_principale||'—')}</td><td>${cs.length}</td><td>${kg(w)}</td><td>${target?kg(target):'—'}</td><td>${target?`<div class="progress"><i style="width:${Math.min(100,rate)}%"></i></div><span class="muted">${pct(rate)}</span>`:'—'}</td></tr>`}).join('');
+  const add=formPanel('Nouveau commis','fCommis',`<label>Code<input name="code" required placeholder="COM-001"></label><label>Nom<input name="nom" required></label><label>Prénoms<input name="prenoms"></label><label>Téléphone<input name="telephone"></label><label>Zone principale<input name="zone"></label><button class="btn primary wide">Enregistrer</button>`,canRole('direction','secretariat'));
+  const obj=formPanel('Fixer un objectif','fObjectifCommis',`<label>Commis<select name="commis" required>${opt(C.commis,x=>x.code_commis+' • '+x.nom)}</select></label><label>Objectif kg<input name="objectif" type="number" min="0" required></label><label>Début<input name="debut" type="date" required></label><label>Fin<input name="fin" type="date" required></label><label>Prime cible<input name="prime" type="number" min="0" value="0"></label><label>Commentaire<input name="commentaire"></label><button class="btn primary wide">Enregistrer l’objectif</button>`,canRole('direction','secretariat'));
+  return banner()+`<div class="grid kpis">${kpi('Commis actifs',filt('commis',C.commis).filter(x=>x.actif).length,'terrain')}${kpi('Collectes',cols.length,'opérations')}${kpi('Volume collecté',kg(cols.reduce((s,x)=>s+Number(x.poids_net_kg||0),0)),'performance')}${kpi('Objectifs actifs',objs.length,'suivi')}</div>${panel('Performance & objectifs',table(['Code','Commis','Zone','Collectes','Réalisé','Objectif','Progression'],rows))}<div class="grid two" style="margin-top:14px">${add}${obj}</div>`;
+};
+
+lots=function(){
+  const links=C.lot_collectes||[], scopeLots=filt('lots',C.lots), cols=filt('collectes',C.collectes);
+  const rows=scopeLots.map(x=>{const ids=links.filter(l=>l.lot_id===x.id).map(l=>l.collecte_id),linked=cols.filter(c=>ids.includes(c.id)),w=linked.reduce((s,c)=>s+Number(c.poids_net_kg||0),0),cost=linked.reduce((s,c)=>s+Number(c.net_a_payer||0),0);return `<tr><td><strong>${esc(x.numero_lot)}</strong></td><td>${esc(C.localites.find(l=>l.id===x.localite_id)?.nom||'—')}</td><td>${esc(C.commis.find(c=>c.id===x.commis_id)?.nom||'—')}</td><td>${linked.length}</td><td>${kg(w||x.poids_total_kg)}</td><td>${money(cost||x.cout_achat_total)}</td><td>${statusPill(x.statut||'ouvert',String(x.statut).toLowerCase()==='ouvert'?'green':'blue')}</td></tr>`}).join('');
+  const used=new Set(links.map(l=>l.collecte_id)), available=cols.filter(c=>!used.has(c.id));
+  const create=formPanel('Ouvrir un lot','fLot',`<label>N° lot<input name="numero" required placeholder="LOT-2026-001"></label><label>Localité<select name="localite"><option value="">—</option>${opt(C.localites,x=>x.nom)}</select></label><label>Commis<select name="commis"><option value="">—</option>${opt(C.commis,x=>x.code_commis+' • '+x.nom)}</select></label><button class="btn primary wide">Ouvrir le lot</button>`,canRole('direction','secretariat','stock_transport'));
+  const link=formPanel('Affecter une collecte à un lot','fLotCollecte',`<label>Lot<select name="lot" required>${opt(scopeLots.filter(x=>String(x.statut||'').toLowerCase()==='ouvert'),x=>x.numero_lot)}</select></label><label>Collecte<select name="collecte" required>${opt(available,x=>x.numero_recu+' • '+kg(x.poids_net_kg))}</select></label><div class="span2 section-note">Une collecte ne peut être affectée qu’à un seul lot. Le poids et le coût du lot sont recalculés automatiquement à l’écran à partir des collectes liées.</div><button class="btn primary wide">Affecter la collecte</button>`,canRole('direction','secretariat','stock_transport'));
+  return banner()+`<div class="grid kpis">${kpi('Lots',scopeLots.length,'période')}${kpi('Lots ouverts',scopeLots.filter(x=>String(x.statut||'').toLowerCase()==='ouvert').length,'en constitution')}${kpi('Collectes affectées',links.length,'traçabilité')}${kpi('Collectes à affecter',available.length,'à traiter')}</div>${panel('Registre des lots',table(['Lot','Localité','Commis','Collectes','Poids','Coût','Statut'],rows))}<div class="grid two" style="margin-top:14px">${create}${link}</div>`;
+};
+
+stock=function(){
+  const m=filt('mouvements_stock',C.mouvements_stock),inv=filt('inventaires_stock',C.inventaires_stock);const theorique=m.reduce((s,x)=>s+(String(x.type_mouvement||'').toLowerCase()==='sortie'?-1:1)*Number(x.poids_kg||0),0);const lastInv=inv.slice().sort((a,b)=>new Date(b.date_inventaire)-new Date(a.date_inventaire))[0];
+  const rows=m.slice().sort((a,b)=>new Date(b.date_mouvement||b.created_at)-new Date(a.date_mouvement||a.created_at)).map(x=>`<tr><td>${safeDate(x.date_mouvement||x.created_at)}</td><td>${statusPill(x.type_mouvement||'—',String(x.type_mouvement).toLowerCase()==='sortie'?'red':'green')}</td><td>${kg(x.poids_kg)}</td><td>${esc(x.source_type||'—')}</td><td>${esc(x.commentaire||'')}</td></tr>`).join('');
+  const invRows=inv.slice().sort((a,b)=>new Date(b.date_inventaire)-new Date(a.date_inventaire)).map(x=>`<tr><td>${safeDate(x.date_inventaire)}</td><td>${esc(x.site)}</td><td>${kg(x.stock_theorique_kg)}</td><td>${kg(x.stock_reel_kg)}</td><td>${statusPill(kg(x.ecart_kg),Math.abs(Number(x.ecart_kg||0))>0?'red':'green')}</td><td>${esc(x.statut)}</td></tr>`).join('');
+  const mov=formPanel('Mouvement de stock','fStock',`<label>Type<select name="type"><option value="entree">Entrée</option><option value="sortie">Sortie</option><option value="ajustement">Ajustement</option></select></label><label>Poids kg<input name="poids" type="number" step="0.01" min="0" required></label><label class="span2">Commentaire<input name="commentaire" placeholder="Origine ou motif de l’opération"></label><button class="btn primary wide">Enregistrer</button>`,canRole('direction','stock_transport'));
+  const invent=formPanel('Nouvel inventaire physique','fInventaire',`<label>Site<input name="site" required placeholder="Magasin principal"></label><label>Stock théorique<input name="theorique" type="number" step="0.01" value="${theorique}" required></label><label>Stock réel<input name="reel" type="number" step="0.01" required></label><label>Statut<select name="statut"><option value="valide">Validé</option><option value="a_verifier">À vérifier</option></select></label><label class="span2">Observation<input name="observation"></label><button class="btn primary wide">Valider l’inventaire</button>`,canRole('direction','stock_transport'));
+  return banner()+`<div class="grid kpis">${kpi('Stock théorique',kg(theorique),'mouvements cumulés')}${kpi('Dernier stock réel',lastInv?kg(lastInv.stock_reel_kg):'—','inventaire')}${kpi('Dernier écart',lastInv?kg(lastInv.ecart_kg):'—','contrôle')}${kpi('Inventaires',inv.length,'historique')}</div><div class="grid two">${panel('Mouvements de stock',table(['Date','Type','Poids','Source','Commentaire'],rows))}${mov}</div><div class="grid two" style="margin-top:14px">${panel('Inventaires physiques',table(['Date','Site','Théorique','Réel','Écart','Statut'],invRows))}${invent}</div>`;
+};
+
+transport=function(){
+  const voyages=filt('voyages',C.voyages),ch=filt('chargements',C.chargements);const active=voyages.filter(x=>!['decharge','déchargé','termine','terminé','clos'].includes(String(x.statut||'').toLowerCase()));
+  const vrows=voyages.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(x=>{const st=String(x.statut||'preparation').toLowerCase();let next='depart';if(st.includes('route')||st.includes('depart'))next='arrivee';if(st.includes('arrive'))next='pesee';if(st.includes('pese'))next='dechargement';const action=canRole('direction','stock_transport')&&!['decharge','déchargé','termine','terminé','clos'].includes(st)?`<button class="btn secondary sm" data-voyage-step="${x.id}" data-step="${next}">${({depart:'Départ',arrivee:'Arrivée',pesee:'Pesée usine',dechargement:'Déchargement'})[next]}</button>`:'—';return `<tr><td><strong>${esc(x.numero_voyage)}</strong></td><td>${esc(x.chauffeur_nom||'—')}</td><td>${esc(x.origine||'—')} → ${esc(x.destination||'—')}</td><td>${kg(x.poids_depart_kg)}</td><td>${x.poids_arrivee_kg!=null?kg(x.poids_arrivee_kg):'—'}</td><td>${x.ecart_kg!=null?statusPill(kg(x.ecart_kg),Math.abs(Number(x.ecart_kg))>0?'red':'green'):'—'}</td><td>${statusPill(x.statut||'préparation',st.includes('decharg')?'green':st.includes('route')?'blue':'')}</td><td>${action}</td></tr>`}).join('');
+  const crows=ch.map(x=>`<tr><td>${esc(x.numero_chargement)}</td><td>${esc(C.camions.find(c=>c.id===x.camion_id)?.immatriculation||'—')}</td><td>${esc(C.usines.find(u=>u.id===x.usine_id)?.nom||'—')}</td><td>${kg(x.poids_depart_site_kg)}</td><td>${x.poids_arrivee_usine_kg!=null?kg(x.poids_arrivee_usine_kg):'—'}</td><td>${statusPill(x.statut||'préparé','blue')}</td></tr>`).join('');
+  const vf=formPanel('Créer un voyage','fVoyage',`<label>N° voyage<input name="numero" required placeholder="VOY-2026-001"></label><label>Camion<select name="camion"><option value="">—</option>${opt(C.camions,x=>x.immatriculation)}</select></label><label>Usine<select name="usine"><option value="">—</option>${opt(C.usines,x=>x.nom)}</select></label><label>Chauffeur<input name="chauffeur"></label><label>Origine<input name="origine"></label><label>Destination<input name="destination"></label><label>Poids départ kg<input name="poids" type="number" step="0.01"></label><button class="btn primary wide">Créer le voyage</button>`,canRole('direction','stock_transport'));
+  const cf=formPanel('Préparer un chargement','fChargement',`<label>N° chargement<input name="numero" required placeholder="CHG-2026-001"></label><label>Camion<select name="camion" required>${opt(C.camions,x=>x.immatriculation)}</select></label><label>Usine<select name="usine"><option value="">—</option>${opt(C.usines,x=>x.nom)}</select></label><label>Poids départ kg<input name="poids" type="number" step="0.01"></label><label>Responsable<input name="responsable"></label><button class="btn primary wide">Préparer</button>`,canRole('direction','stock_transport'));
+  return banner()+`<div class="grid kpis">${kpi('Voyages',voyages.length,'période')}${kpi('En cours',active.length,'à suivre')}${kpi('Chargements',ch.length,'préparés')}${kpi('Écarts détectés',voyages.filter(x=>Math.abs(Number(x.ecart_kg||0))>0).length,'contrôle poids')}</div>${panel('Suivi départ → déchargement',table(['Voyage','Chauffeur','Trajet','Départ','Arrivée','Écart','Statut','Prochaine étape'],vrows))}<div class="grid two" style="margin-top:14px">${panel('Chargements',table(['Chargement','Camion','Usine','Départ','Arrivée','Statut'],crows))}${cf}</div><div style="margin-top:14px">${vf}</div>`;
+};
+
+clotures=function(){
+  const ex=C.exercices||[],rp=C.reports_a_nouveau||[],reports=C.reports_annuels||[];const exRows=ex.map(x=>`<tr><td><strong>${x.annee}</strong></td><td>${esc(x.libelle)}</td><td>${safeDate(x.date_debut)}</td><td>${safeDate(x.date_fin)}</td><td>${statusPill(x.statut,String(x.statut).toLowerCase().includes('ouvert')?'green':'blue')}</td><td>${safeDate(x.cloture_le)}</td></tr>`).join('');const rpRows=rp.map(x=>`<tr><td>${x.exercice_source}</td><td>${x.exercice_destination}</td><td>${esc(x.type_report)}</td><td>${money(x.valeur_numeric)}</td></tr>`).join('');const rr=reports.map(x=>`<tr><td>${x.exercice_annee}</td><td>${esc(x.type_rapport)}</td><td>${safeDate(x.periode_debut)} → ${safeDate(x.periode_fin)}</td><td>${safeDate(x.created_at)}</td></tr>`).join('');
+  const rf=formPanel('Archiver un rapport annuel','fRapportAnnuel',`<label>Type de rapport<select name="type"><option value="synthese_annuelle">Synthèse annuelle</option><option value="production">Production</option><option value="tresorerie">Trésorerie</option><option value="logistique">Logistique</option><option value="gouvernance">Gouvernance</option></select></label><label>Début<input name="debut" type="date"></label><label>Fin<input name="fin" type="date"></label><div class="span2 section-note">Cette action archive la génération du rapport dans la base. La clôture comptable définitive reste une opération de direction/comptabilité.</div><button class="btn primary wide">Archiver le rapport</button>`,canRole('direction','comptabilite'));
+  return banner()+`<div class="grid two">${panel('Exercices comptables',table(['Année','Libellé','Début','Fin','Statut','Clôturé le'],exRows))}${panel('Reports à nouveau',table(['Source','Destination','Type','Valeur'],rpRows))}</div><div class="grid two" style="margin-top:14px">${panel('Rapports annuels archivés',table(['Année','Type','Période','Créé le'],rr))}${rf}</div>`;
+};
+
+documents=function(){
+  const dep=C.depenses||[],voy=C.voyages||[],ags=C.assemblees||[];const d=dep.filter(x=>x.justificatif_url),t=voy.filter(x=>x.ticket_pesee_url),pv=ags.filter(x=>x.pv_url);const missingDep=dep.length-d.length,missingTicket=voy.filter(x=>['decharge','déchargé','termine','terminé'].includes(String(x.statut||'').toLowerCase())&&!x.ticket_pesee_url).length,missingPV=ags.filter(x=>String(x.statut||'').toLowerCase()==='tenue'&&!x.pv_url).length;
+  return banner()+`<div class="grid kpis">${kpi('Justificatifs dépenses',d.length,`${missingDep} manquant(s)`) }${kpi('Tickets de pesée',t.length,`${missingTicket} voyage(s) à compléter`)}${kpi('PV d’assemblée',pv.length,`${missingPV} PV manquant(s)`)}${kpi('Conformité documentaire',dep.length+voy.length+ags.length?`${Math.round(((d.length+t.length+pv.length)/Math.max(1,dep.length+voy.length+ags.length))*100)}%`:'—','couverture estimée')}</div><div class="grid three"><div class="quick"><strong>Dépenses</strong><span class="muted">${d.length} justificatifs référencés / ${dep.length} dépenses.</span>${missingDep?statusPill(`${missingDep} à compléter`,'red'):statusPill('Complet','green')}</div><div class="quick"><strong>Transport usine</strong><span class="muted">${t.length} tickets de pesée enregistrés.</span>${missingTicket?statusPill(`${missingTicket} à compléter`,'red'):statusPill('À jour','green')}</div><div class="quick"><strong>Gouvernance</strong><span class="muted">${pv.length} procès-verbaux référencés.</span>${missingPV?statusPill(`${missingPV} à compléter`,'red'):statusPill('À jour','green')}</div></div><div class="section-note" style="margin-top:14px">Centre de conformité documentaire : les pièces manquantes sont détectées automatiquement à partir des opérations déjà enregistrées.</div>`;
+};
+
+const _bindFormsV41=bindForms;
+bindForms=function(){
+  _bindFormsV41();
+  bind('fObjectifCommis',fd=>insert('commis_objectifs',{commis_id:fd.get('commis'),activite_id:currentActivity(),exercice_annee:currentYear(),periode_debut:fd.get('debut'),periode_fin:fd.get('fin'),objectif_kg:Number(fd.get('objectif')),prime_cible:Number(fd.get('prime')||0),commentaire:fd.get('commentaire')||null}));
+  bind('fLotCollecte',fd=>insert('lot_collectes',{lot_id:fd.get('lot'),collecte_id:fd.get('collecte')}));
+  bind('fInventaire',fd=>{const th=Number(fd.get('theorique')||0),reel=Number(fd.get('reel')||0);return insert('inventaires_stock',{date_inventaire:new Date().toISOString(),site:fd.get('site'),stock_theorique_kg:th,stock_reel_kg:reel,ecart_kg:reel-th,statut:fd.get('statut'),observation:fd.get('observation')||null,controle_par:session.user.id,activite_id:currentActivity(),exercice_annee:currentYear()})});
+  bind('fChargement',fd=>insert('chargements',{numero_chargement:fd.get('numero'),camion_id:fd.get('camion'),usine_id:fd.get('usine')||null,date_depart:null,poids_depart_site_kg:Number(fd.get('poids')||0)||null,responsable_chargement:fd.get('responsable')||null,statut:'prepare',activite_id:currentActivity(),exercice_annee:currentYear()}));
+  bind('fRapportAnnuel',fd=>insert('reports_annuels',{exercice_annee:currentYear(),activite_id:activity==='ALL'?null:currentActivity(),type_rapport:fd.get('type'),periode_debut:fd.get('debut')||null,periode_fin:fd.get('fin')||null,parametres:{activity:activityName(),year:yearName()},genere_par:session.user.id}));
+  document.querySelectorAll('[data-voyage-step]').forEach(btn=>btn.onclick=async()=>{
+    const id=btn.dataset.voyageStep,step=btn.dataset.step,v=(C.voyages||[]).find(x=>x.id===id);if(!v)return;const now=new Date().toISOString();
+    if(step==='depart')return update('voyages',id,{date_depart:now,statut:'en_route'});
+    if(step==='arrivee'){const val=prompt('Poids à l’arrivée (kg)',String(v.poids_depart_kg||''));if(val===null)return;const arr=Number(val),dep=Number(v.poids_depart_kg||0),ec=arr-dep;return update('voyages',id,{date_arrivee:now,poids_arrivee_kg:arr,ecart_kg:ec,ecart_pct:dep?ec/dep*100:null,statut:'arrive_usine'})}
+    if(step==='pesee'){const val=prompt('Poids retenu par l’usine (kg)',String(v.poids_arrivee_kg||v.poids_depart_kg||''));if(val===null)return;return update('voyages',id,{date_pesee_usine:now,poids_retenu_usine_kg:Number(val),statut:'pese_usine'})}
+    if(step==='dechargement')return update('voyages',id,{date_dechargement:now,statut:'decharge'});
+  });
+};

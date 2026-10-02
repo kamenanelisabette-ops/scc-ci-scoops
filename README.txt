@@ -1,23 +1,45 @@
-SCC-CI-SCOOPS V3 PRO
+SCC-CI-SCOOPS — V4 ERP PRO
+===========================
 
-Version autonome reconstruite à partir du correctif V2.1 et de la structure réelle Supabase.
+Cette version transforme le prototype précédent en ERP coopératif plus structuré.
 
-Fichiers :
-- index.html
-- styles.css
-- app.js
+PRINCIPALES AMELIORATIONS
+- Tableau de bord exécutif consolidé
+- Circuit opérationnel visible : collecte > paiement > stock > transport > vente > encaissement
+- KPIs direction : volume collecté, CA, engagements planteurs, résultat opérationnel
+- Performance par activité et par commis
+- Centre d'alertes et incidents
+- Recherche globale (planteur, collecte, voyage, vente, membre)
+- Actions rapides depuis la barre supérieure
+- Navigation professionnelle par domaine métier
+- Gestion des rôles et menus par responsabilité
+- Création d'utilisateurs depuis le logiciel
+- Changement de rôle, activation/désactivation et mot de passe par l'admin
+- Objectifs et suivi de performance des commis
+- Lots avec affectation réelle des collectes
+- Inventaires physiques avec calcul d'écart
+- Transport suivi étape par étape jusqu'au déchargement
+- Préparation des chargements
+- Rapports consolidés par activité
+- Archivage des rapports annuels
+- Centre de conformité documentaire
+- Interface responsive ordinateur / tablette / téléphone
 
-La configuration Supabase est déjà intégrée avec la clé publishable publique.
-Aucune clé service_role n'est exposée.
+ROLES
+- admin : accès complet + gestion utilisateurs
+- direction : accès complet métier
+- secretariat : producteurs, collecte, localités, lots, membres et gouvernance
+- caisse : collecte, paiements, caisse et échéances
+- comptabilite : trésorerie, ventes, dépenses, comptabilité, clôtures et audit
+- commis : producteurs, localités, collecte, lots et rapports
+- stock_transport : lots, stock, voyages, flotte, usines et documents
 
-Modules présents : tableau de bord, alertes, planteurs, commis, localités/tarifs, collectes/pesées, lots, stock/inventaire, caisse, banques/transferts, créances/dettes, transport/voyages, flotte/maintenance, usines, ventes/règlements, dépenses, comptabilité, clôtures/reports, membres/parts sociales, gouvernance/AG, utilisateurs/rôles, documents/conformité, rapports, audit, paramètres.
+SECURITE
+La clé service_role n'est jamais placée dans le navigateur.
+Les actions administratives sur les comptes passent par les Edge Functions Supabase protégées :
+- create-user
+- manage-user
 
-Pour déployer : déposer les 3 fichiers à la racine d'un hébergement statique (Vercel, Netlify, GitHub Pages avec HTTPS).
-
-V3.2 - Création des utilisateurs
-- Le menu Personnel / utilisateurs permet désormais à un administrateur de créer un compte complet.
-- La création passe par la Supabase Edge Function sécurisée `create-user`.
-- La clé service_role n'est jamais exposée dans le navigateur.
-- Le compte Auth et la ligne `profiles` sont créés ensemble.
-- Rôles disponibles : admin, direction, secretariat, caisse, comptabilite, commis, stock_transport.
-- Le compte est activé immédiatement et un journal d'audit est créé.
+CONNEXION
+Ouvrir index.html via un hébergement web statique ou déployer le dossier sur Netlify/Vercel.
+Pour un usage multi-utilisateurs en production, utiliser HTTPS et conserver Supabase comme backend central.
