@@ -1,7 +1,7 @@
-/* SCC-CI-SCOOPS — Patch Tare par activité
-   - Caoutchouc/Hévéa: 3% par défaut côté Supabase
-   - Taux modifiable par activité dans Paramètres
-   - Calcul automatique: Brut -> Tare -> Net
+/* SCC-CI-SCOOPS — Correctif Collecte + Tare
+   Correction importante :
+   poids_net_kg, montant_brut et net_a_payer sont des colonnes GENERATED dans Supabase.
+   Elles ne doivent jamais être envoyées lors d'un INSERT.
 */
 
 (function () {
@@ -10,7 +10,6 @@
     return Number(act?.taux_tare_percent || 0);
   }
 
-  // Remplace l'écran Collectes & pesées
   collectes = function () {
     const act = (A || []).find(a => a.id === currentActivity());
     const taux = Number(act?.taux_tare_percent || 0);
@@ -58,16 +57,19 @@
 
       <label>Tarif
         <select name="tarif" required>
-          ${opt(filt('tarifs_bord_champ', C.tarifs_bord_champ).filter(x => x.actif), x => money(x.prix_kg) + '/kg')}
+          ${opt(
+            filt('tarifs_bord_champ', C.tarifs_bord_champ).filter(x => x.actif),
+            x => money(x.prix_kg) + '/kg'
+          )}
         </select>
       </label>
 
       <label>Poids brut kg
-        <input id="collecteBrut" name="brut" type="number" step="0.01" min="0" required>
+        <input id="collecteBrut" name="brut" type="number" step="0.01" min="0.01" required>
       </label>
 
       <label>Taux de tare %
-        <input id="collecteTauxTare" name="tare_percent" type="number" step="0.01" value="${taux}" readonly>
+        <input id="collecteTauxTare" type="number" step="0.01" value="${taux}" readonly>
       </label>
 
       <label>Tare calculée kg
@@ -89,15 +91,11 @@
     );
   };
 
-  // Remplace l'écran Paramètres pour ajouter la tare configurable.
   parametres = function () {
     const canEdit = ['admin', 'direction'].includes(profile?.role);
 
     const ar = (A || []).map(x => `<tr>
-      <td>
-        <strong>${esc(x.nom)}</strong>
-        <div class="muted">${esc(x.code)}</div>
-      </td>
+      <td><strong>${esc(x.nom)}</strong><div class="muted">${esc(x.code)}</div></td>
       <td>${esc(x.unite_principale || 'kg')}</td>
       <td>
         <div style="display:flex;gap:8px;align-items:center">
@@ -116,10 +114,9 @@
         </div>
       </td>
       <td>${x.actif ? 'Actif' : 'Inactif'}</td>
-      <td>
-        ${canEdit
-          ? `<button class="btn primary sm" data-save-tare="${x.id}">Enregistrer</button>`
-          : 'Lecture seule'}
+      <td>${canEdit
+        ? `<button class="btn primary sm" data-save-tare="${x.id}">Enregistrer</button>`
+        : 'Lecture seule'}
       </td>
     </tr>`).join('');
 
@@ -177,13 +174,14 @@
     });
   }
 
-  // On conserve tous les autres formulaires existants et on ajoute la logique tare.
   const previousBindForms = bindForms;
+
   bindForms = function () {
     previousBindForms();
     bindTareSettings();
 
     const fc = $('#fCollecte');
+
     if (fc) {
       fc.onsubmit = async e => {
         e.preventDefault();
@@ -193,11 +191,28 @@
         const brut = Number(fd.get('brut') || 0);
         const taux = tarePctForCurrentActivity();
         const tare = +(brut * taux / 100).toFixed(2);
-        const net = +(brut - tare).toFixed(2);
         const prix = Number(tar?.prix_kg || 0);
 
+        if (!brut || brut <= 0) {
+          toast('Le poids brut doit être supérieur à 0 kg');
+          return;
+        }
+
+        if (tare > brut) {
+          toast('La tare ne peut pas dépasser le poids brut');
+          return;
+        }
+
+        if (!prix && prix !== 0) {
+          toast('Tarif invalide');
+          return;
+        }
+
+        // IMPORTANT :
+        // Ne pas envoyer poids_net_kg, montant_brut, net_a_payer.
+        // Supabase les calcule automatiquement.
         await insert('collectes', {
-          numero_recu: fd.get('recu'),
+          numero_recu: String(fd.get('recu') || '').trim(),
           date_collecte: new Date(fd.get('date')).toISOString(),
           planteur_id: fd.get('planteur'),
           commis_id: fd.get('commis'),
@@ -205,11 +220,8 @@
           tarif_id: fd.get('tarif'),
           poids_brut_kg: brut,
           tare_kg: tare,
-          poids_net_kg: net,
           prix_kg: prix,
-          montant_brut: net * prix,
           retenue_avance: 0,
-          net_a_payer: net * prix,
           statut_paiement: 'a_payer',
           activite_id: currentActivity(),
           exercice_annee: currentYear(),
