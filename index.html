@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="v5-ui.css?v=5.0.0">
+<link rel="stylesheet" href="v5-1-ui.css?v=5.1.0">
 </head>
 <body>
 <div id="toast"></div>
@@ -16,14 +17,14 @@
     <div class="login-hero">
       <div class="hero-kicker">SYSTÈME INTÉGRÉ DE GESTION COOPÉRATIVE</div>
       <h1>Pilotez toute la coopérative depuis un seul outil.</h1>
-      <p>Collecte, caisse, stock, transport, ventes, comptabilité, membres, contrôle et rapports — avec traçabilité complète.</p>
+      <p>Collecte, parcelles, qualité, caisse, stock, transport, ventes, comptabilité, membres, contrôle et rapports — avec traçabilité complète.</p>
       <div class="hero-points">
-        <span>✓ Multi-activités</span><span>✓ Multi-années</span><span>✓ Gestion par rôles</span><span>✓ Audit & traçabilité</span>
+        <span>✓ Multi-activités</span><span>✓ Traçabilité parcelles</span><span>✓ Contrôle qualité</span><span>✓ Audit & sécurité</span>
       </div>
     </div>
     <div class="login-card">
       <div class="brand-mark">SCC</div>
-      <div class="login-title"><div class="eyebrow">Accès sécurisé</div><h2>SCC-CI-SCOOPS</h2><p>ERP de gestion coopérative</p></div>
+      <div class="login-title"><div class="eyebrow">Accès sécurisé</div><h2>SCC-CI-SCOOPS</h2><p>ERP Coopérative PRO</p></div>
       <form id="loginForm">
         <label>Adresse email<input id="loginEmail" type="email" required autocomplete="username" placeholder="nom@cooperative.ci"></label>
         <label>Mot de passe<input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••"></label>
@@ -36,10 +37,10 @@
 </section>
 <section id="appView" class="app hidden">
   <aside id="sidebar" class="sidebar">
-    <div class="brand"><div class="logo">SCC</div><div><strong>SCC-CI-SCOOPS</strong><span>ERP Coopérative</span></div></div>
+    <div class="brand"><div class="logo">SCC</div><div><strong>SCC-CI-SCOOPS</strong><span>ERP Coopérative PRO</span></div></div>
     <div class="side-context"><span class="side-dot"></span><div><strong id="sideActivity">Toutes activités</strong><span id="sideYear">Toutes années</span></div></div>
     <nav id="nav"></nav>
-    <div class="side-foot"><button id="logoutBtn" class="btn ghost wide">Se déconnecter</button><small>Version 5.0 ERP PRO</small></div>
+    <div class="side-foot"><button id="logoutBtn" class="btn ghost wide">Se déconnecter</button><small>Version 5.1 ERP PRO</small></div>
   </aside>
   <main class="main">
     <header class="topbar">
@@ -63,4 +64,5 @@
 <script src="tare-patch.js?v=1.0.1"></script>
 <script src="stability-patch.js?v=4.2.0"></script>
 <script src="v5-core.js?v=5.0.0"></script>
+<script src="v5-1-core.js?v=5.1.0"></script>
 </body></html>

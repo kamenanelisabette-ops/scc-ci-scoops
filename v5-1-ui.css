@@ -1,0 +1,17 @@
+/* SCC-CI-SCOOPS V5.1 — finition */
+.v51-section-title{display:flex;align-items:end;justify-content:space-between;margin:26px 2px 12px}
+.v51-section-title span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#708178}
+.v51-section-title strong{font-size:15px;color:#173e2d}
+.v51-empty{display:flex;min-height:180px;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:#7a8d83;text-align:center}
+.v51-empty-icon{font-size:30px;color:#1d8b5e}
+.v51-empty span{font-size:12px}
+.v51-action-card{display:flex;flex-direction:column;gap:10px;padding:18px;border-radius:16px;background:linear-gradient(145deg,#eef9f3,#fff);border:1px solid #d5ebdf}
+.v51-action-card strong{font-size:18px;color:#15553a}
+.v51-action-card span{color:#718078}
+textarea{min-height:92px;resize:vertical}
+a{color:#0f7850;font-weight:700;text-decoration:none}
+a:hover{text-decoration:underline}
+@media(max-width:760px){
+  .v51-section-title{align-items:start;flex-direction:column;gap:3px}
+  .v51-action-card{padding:14px}
+}
