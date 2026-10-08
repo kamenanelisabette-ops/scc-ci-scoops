@@ -1,0 +1,4 @@
+.auto-note{grid-column:1/-1;display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:linear-gradient(135deg,#eaf8f1,#f7fcf9);border:1px solid #cce9da;color:#315c48}
+.auto-note .auto-dot{width:10px;height:10px;border-radius:50%;background:#16a36d;margin-top:5px;box-shadow:0 0 0 5px rgba(22,163,109,.10);flex:0 0 auto}
+.auto-note strong{display:block;color:#126542;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.auto-note span{display:block;font-size:12px;margin-top:2px}
