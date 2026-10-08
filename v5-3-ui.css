@@ -1,0 +1,6 @@
+/* V5.3 */
+.payroll-box{display:grid;gap:12px}
+.table td .btn+.btn{margin-left:5px}
+@media(max-width:760px){
+  .table td .btn+.btn{margin-left:0;margin-top:5px}
+}
